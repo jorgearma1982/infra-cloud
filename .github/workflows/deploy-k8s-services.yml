@@ -1,0 +1,226 @@
+name: 'Deploy k8s services'
+
+on:
+  push:
+    branches:
+    - master
+    paths:
+      - 'gke/**'
+      - '.github/workflows/deploy-k8s-services.yml'
+  pull_request:
+    paths:
+      - 'gke/**'
+      - '.github/workflows/deploy-k8s-services.yml'
+
+jobs:
+  helm:
+    name: 'Deploy Helm Services'
+    runs-on: self-hosted-gadgex
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: sandbox
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: Set Kubernetes cluster credentials
+      uses: google-github-actions/get-gke-credentials@main
+      with:
+        cluster_name: gadgex-${{ secrets.GCP_PROJECT_ENV }}
+        location: ${{ secrets.GCP_PROJECT_ZONE }}
+    - name: Verify cluster nodes
+      run: kubectl get nodes
+    - name: Verify cluster pods
+      run: kubectl get pods --all-namespaces
+    - name: Verify cluster services
+      run: kubectl get services --all-namespaces
+    - name: Setup helm vía kube-tools
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "List releases"
+          helm ls
+
+  external-dns:
+    name: 'Deploy External DNS'
+    runs-on: self-hosted-gadgex
+    needs: helm
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: sandbox
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: Set Kubernetes cluster credentials
+      uses: google-github-actions/get-gke-credentials@main
+      with:
+        cluster_name: gadgex-${{ secrets.GCP_PROJECT_ENV }}
+        location: ${{ secrets.GCP_PROJECT_ZONE }}
+    - name: Setup helm client vía kube-tools
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "List releases"
+          helm ls
+    - name: Add external-dns helm repo
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "Add external-dns repo"
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          echo "Run repo update"
+          helm repo update
+    - name: Create external-dns namespace
+      run: kubectl get namespace external-dns || kubectl create namespace external-dns
+    - name: Create external-dns aws secret
+      run: kubectl -n external-dns get secret aws-credentials || kubectl -n external-dns create secret generic aws-credentials --from-literal=aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }} --from-literal=aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    - name: Install external-dns with helm
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "Install external-dns"
+          helm ls -n external-dns | grep external-dns || helm install external-dns bitnami/external-dns --namespace external-dns --version 3.3.0 --set source=ingress --set provider=aws --set aws.zoneType=public --set aws.credentials.accessKey=${{ secrets.AWS_ACCESS_KEY_ID }} --set aws.credentials.secretKey=${{ secrets.AWS_SECRET_ACCESS_KEY }} --set domainFilters[0]=sandbox.gadgex.io --set interval=2m --set logLevel=info --set policy=upsert-only --set registry=txt --set txtOwnerId=k8s-sandbox-cluster --set replicas=1
+          echo "Wait for external-dns"
+          sleep 30
+    - name: Verify external dns pods
+      run: kubectl get pods -n external-dns
+    - name: Verify external dns services
+      run: kubectl get services -n external-dns
+
+  cert-manager:
+    name: 'Deploy Cert Manager'
+    runs-on: self-hosted-gadgex
+    needs: external-dns
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: sandbox
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: Set Kubernetes cluster credentials
+      uses: google-github-actions/get-gke-credentials@main
+      with:
+        cluster_name: gadgex-${{ secrets.GCP_PROJECT_ENV }}
+        location: ${{ secrets.GCP_PROJECT_ZONE }}
+    - name: Setup helm client vía kube-tools
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "List releases"
+          helm ls
+    - name: Add jetstack helm repo
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "Add jetstack repo"
+          helm repo add jetstack https://charts.jetstack.io
+          echo "Run repo update"
+          helm repo update
+    - name: Create ingress cert-manager
+      run: kubectl get namespace cert-manager || kubectl create namespace cert-manager
+    - name: Set label to cert-manager namespace
+      run: kubectl label namespace cert-manager certmanager.k8s.io/disable-validation="true" --overwrite=true
+    - name: Install CRDs for cert-manager
+      run: kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.4.0/cert-manager.crds.yaml
+    - name: Install cert-manager with helm
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "Install cert-manager"
+          helm ls -n cert-manager | grep cert-manager || helm install cert-manager jetstack/cert-manager --namespace cert-manager --version v1.4.0
+          echo "Wait for cert-manager"
+          sleep 30
+    - name: Verify cert-manager pods
+      run: kubectl get pods -n cert-manager
+    - name: Verify cert-manager services
+      run: kubectl get services -n cert-manager
+    - name: Create letsencrypt-staging clusterissuer
+      run: kubectl apply -f helm/sandbox/cert-manager/staging_issuer.yaml
+    - name: Wait for letsecrypt-staging account registration
+      run: sleep 30
+    - name: Verify letsencrypt-staging clusterissuer
+      run: kubectl describe clusterissuer letsencrypt-staging
+    - name: Create letsencrypt-prod clusterissuer
+      run: kubectl apply -f helm/sandbox/cert-manager/production_issuer.yaml
+    - name: Wait for letsecrypt-prod account registration
+      run: sleep 30
+    - name: Verify letsencrypt-prod clusterissuer
+      run: kubectl describe clusterissuer letsencrypt-prod
+
+  ingress-nginx:
+    name: 'Deploy Ingress nginx'
+    runs-on: self-hosted-gadgex
+    needs: cert-manager
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: sandbox
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: Set Kubernetes cluster credentials
+      uses: google-github-actions/get-gke-credentials@main
+      with:
+        cluster_name: gadgex-${{ secrets.GCP_PROJECT_ENV }}
+        location: ${{ secrets.GCP_PROJECT_ZONE }}
+    - name: Setup helm client vía kube-tools
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "List releases"
+          helm ls
+    - name: Add ingress-nginx helm repo
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "Add ingress-nginx repo"
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+    - name: Create ingress namespace
+      run: kubectl get namespace ingress || kubectl create namespace ingress
+    - name: Install ingress-nginx with helm
+      uses: stefanprodan/kube-tools@v1
+      with:
+        helm: 3.6.3
+        command: |
+          echo "Install ingress-nginx"
+          helm ls -n ingress | grep ingress || helm install ingress ingress-nginx/ingress-nginx --namespace ingress --version 3.11.0 --set controller.ingressClass=nginx --set controller.publishService.enabled=true --set controller.replicaCount=2 --set controller.minAvailable=1 --set controller.externalTrafficPolicy=Local --set defaultBackend.enabled=false
+          echo "Wait for nginx"
+          sleep 60
+    - name: Verify ingress nginx controller pods
+      run: kubectl get pods -n ingress
+    - name: Verify ingress nginx controller LoadBalancer External IP
+      run: kubectl get services -n ingress | grep LoadBalancer | awk -F " " '{ print $4}'
+

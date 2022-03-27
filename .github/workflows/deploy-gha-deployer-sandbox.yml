@@ -1,0 +1,110 @@
+---
+name: Deploy gha-deployer Sandbox
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'kubernetes/sandbox/gha-deployer/**'
+  pull_request:
+    paths:
+      - 'kubernetes/sandbox/gha-deployer/**'
+
+env:
+  PROJECT: gha-deployer
+  ENVIRONMENT: sandbox
+  NAMESPACE: gadgex
+  K8S_CONFIGS_REPO: infra-gadgex
+
+jobs:
+  deploy-to-k8s:
+    name: Deploy to kubernetes
+    runs-on: self-hosted-gadgex
+    defaults:
+      run:
+        working-directory: kubernetes/${{ env.ENVIRONMENT }}/${{ env.PROJECT }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Kubectl tool installer
+        uses: Azure/setup-kubectl@v1
+      - name: Setup kubectl
+        env:
+          K8S_CONFIG: ${{ secrets.GADGEX_K8S_CONFIG_SANDBOX }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${K8S_CONFIG}" | base64 --decode > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+          kubectl cluster-info
+
+      - name: Install dependencies
+        run: |
+          pip3 install yamllint kubernetes-validate
+
+      - name: Lint check yaml files
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          format: parsable
+          strict: false
+          file_or_dir: 'kubernetes/sandbox/gha-deployer/*.yml'
+          config_data: |
+            extends: default
+            rules:
+              new-line-at-end-of-file:
+                level: warning
+              trailing-spaces:
+                level: warning
+              line-length: disable
+
+      - name: Set GITHUB PATH
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Lint namespace manifest
+        run: kubernetes-validate 0_namespace.yml
+      - name: Validate namespace manifest
+        run: kubectl --dry-run=client create -f 0_namespace.yml
+      - name: Apply namespace resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 0_namespace.yml
+      - name: Verify namespace resource
+        if: github.event_name == 'push'
+        run: |
+          kubectl get namespace ${{ env.NAMESPACE }}
+          kubectl config set-context --current --namespace=${{ env.NAMESPACE }}
+
+      - name: Lint serviceaccount manifest
+        run: kubernetes-validate 10_serviceaccount.yml
+      - name: Validate serviceaccount manifest
+        run: kubectl --dry-run=client create -f 10_serviceaccount.yml
+      - name: Apply serviceaccount resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 10_serviceaccount.yml
+      - name: Verify serviceaccount resource
+        if: github.event_name == 'push'
+        run: kubectl get sa ${{ env.PROJECT }}-${{ env.ENVIRONMENT }}
+
+      - name: Lint clusterrole manifest
+        run: kubernetes-validate 11_clusterrole.yml
+      - name: Validate clusterrole manifest
+        run: kubectl --dry-run=client create -f 11_clusterrole.yml
+      - name: Apply clusterrole resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 11_clusterrole.yml
+      - name: Verify clusterrole resource
+        if: github.event_name == 'push'
+        run: kubectl get clusterrole ${{ env.PROJECT }}-${{ env.ENVIRONMENT }}
+
+      - name: Lint clusterrolebinding manifest
+        run: kubernetes-validate 12_clusterrolebinding.yml
+      - name: Validate clusterrolebinding manifest
+        run: kubectl --dry-run=client create -f 12_clusterrolebinding.yml
+      - name: Apply clusterrolebinding resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 12_clusterrolebinding.yml
+      - name: Verify clusterrolebinding resource
+        if: github.event_name == 'push'
+        run: kubectl get clusterrolebinding ${{ env.PROJECT }}-${{ env.ENVIRONMENT }}
+

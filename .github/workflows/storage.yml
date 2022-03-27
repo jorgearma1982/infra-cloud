@@ -1,0 +1,43 @@
+name: 'storage'
+
+on:
+  push:
+    branches:
+    - master
+    paths:
+      - 'storage/**'
+  pull_request:
+    paths:
+      - 'storage/**'
+
+jobs:
+  terraform:
+    name: 'Create Cloud Storage'
+    runs-on: ubuntu-latest
+    environment: sandbox
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: 1.0.10
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ secrets.SANDBOX_GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.SANDBOX_GCP_SA_KEY }}
+        export_default_credentials: true
+    - name: Terraform Init plugins
+      run: cd storage; terraform init
+    - name: Terraform Format check
+      run: cd storage; terraform fmt -check
+    - name: Terraform Plan
+      run: cd storage; terraform plan
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: cd storage; terraform apply -auto-approve
+
