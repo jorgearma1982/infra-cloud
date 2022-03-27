@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: template-node-api
+  namespace: sandbox
+  annotations:
+    manifest_path: "kubernetes/sandbox/template-node-api/1_deployment.yml"
+  labels:
+    app: template-node-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: template-node-api
+  template:
+    metadata:
+      annotations:
+        ad.datadoghq.com/template-node-api.logs: '[{"source": "template-node-api", "service": "template-node-api"}]'
+      labels:
+        app: template-node-api
+    spec:
+      containers:
+        - name: template-node-api
+          image: resuelve/template-node-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PG_DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: template-node-api-secret
+                  key: PG_DB_HOST
+            - name: PG_DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: template-node-api-secret
+                  key: PG_DB_PORT
+            - name: PG_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: template-node-api-secret
+                  key: PG_DB_NAME
+            - name: PG_DB_SSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: template-node-api-secret
+                  key: PG_DB_SSLMODE
+            - name: PG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: template-node-api-secret
+                  key: PG_DB_USER
+            - name: PG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: template-node-api-secret
+                  key: PG_DB_PASSWORD
+      imagePullSecrets:
+        - name: docker-secrets
+      nodeSelector:
+        cloud.google.com/gke-nodepool: "sandbox-rtd"

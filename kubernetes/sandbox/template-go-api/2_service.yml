@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: template-go-api
+  namespace: sandbox
+spec:
+  selector:
+    app: template-go-api
+  ports:
+    - name: template-go-api
+      protocol: TCP
+      port: 5001
+      targetPort: 5001

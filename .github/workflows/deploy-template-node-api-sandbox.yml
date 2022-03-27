@@ -1,0 +1,140 @@
+---
+name: Deploy Template Node API Sandbox
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'kubernetes/sandbox/template-node-api/**'
+      - '.github/workflows/deploy-template-node-api-sandbox.yml'
+  pull_request:
+    paths:
+      - 'kubernetes/sandbox/template-node-api/**'
+      - '.github/workflows/deploy-template-node-api-sandbox.yml'
+
+env:
+  PROJECT: template-node-api
+  ENVIRONMENT: sandbox
+  NAMESPACE: sandbox
+
+jobs:
+  deploy-to-k8s:
+    name: Deploy to kubernetes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kubernetes/${{ env.ENVIRONMENT }}/${{ env.PROJECT }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Kubectl tool installer
+        uses: Azure/setup-kubectl@v1
+      - name: Setup kubectl
+        env:
+          K8S_CONFIG: ${{ secrets.K8S_CONFIG_SANDBOX }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${K8S_CONFIG}" | base64 --decode > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+          kubectl cluster-info
+
+      - name: Install dependencies
+        run: |
+          pip3 install yamllint kubernetes-validate
+
+      - name: Lint check yaml files
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          format: parsable
+          strict: true
+          file_or_dir: 'kubernetes/${{ env.ENVIRONMENT }}/${{ env.PROJECT }}/*.yml'
+          config_data: |
+            extends: default
+            rules:
+              new-line-at-end-of-file:
+                level: warning
+              trailing-spaces:
+                level: warning
+              line-length: disable
+
+      - name: Set GITHUB PATH
+        run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Lint namespace manifest
+        run: kubernetes-validate 0_namespace.yml
+      - name: Validate namespace manifest
+        run: kubectl --dry-run=client create -f 0_namespace.yml
+      - name: Apply namespace resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 0_namespace.yml
+      - name: Verify namespace resource
+        if: github.event_name == 'push'
+        run: |
+          kubectl get namespace ${{ env.NAMESPACE }}
+          kubectl config set-context --current --namespace=${{ env.NAMESPACE }}
+
+      - name: Apply docker secret resource
+        if: github.event_name == 'push'
+        run: |
+          kubectl get secret docker-secrets && kubectl delete secret docker-secrets
+          kubectl get secret docker-secrets || kubectl create secret docker-registry docker-secrets --docker-server=https://index.docker.io/v1/ --docker-username=${{ secrets.DOCKER_USERNAME }} --docker-password=${{ secrets.DOCKER_PASSWORD }}
+      - name: Verify docker secret resource
+        if: github.event_name == 'push'
+        run: kubectl get secret docker-secrets
+
+      - name: Apply app secret resource
+        if: github.event_name == 'push'
+        env:
+          CONFIG_SANDBOX: ${{ secrets.CONFIG_TEMPLATE_NODE_API_SANDBOX }}
+        run: |
+          echo "${CONFIG_SANDBOX}" | base64 --decode > secret.env
+          kubectl get secret ${{ env.PROJECT }}-secret && kubectl delete secret ${{ env.PROJECT }}-secret
+          kubectl get secret ${{ env.PROJECT }}-secret || kubectl create secret generic ${{ env.PROJECT }}-secret --from-env-file=secret.env
+          rm secret.env
+      - name: Verify app secret resource
+        if: github.event_name == 'push'
+        run: kubectl get secret ${{ env.PROJECT }}-secret
+
+      - name: Lint deployment manifest
+        run: kubernetes-validate 1_deployment.yml
+      - name: Validate deployment manifest
+        run: kubectl --dry-run=client create -f 1_deployment.yml
+      - name: Apply deployment resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 1_deployment.yml
+      - name: Verify deployment resource
+        if: github.event_name == 'push'
+        run: kubectl get deployment ${{ env.PROJECT }}
+
+      - name: Lint service manifest
+        run: kubernetes-validate 2_service.yml
+      - name: Validate service manifest
+        run: kubectl --dry-run=client create -f 2_service.yml
+      - name: Apply service resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 2_service.yml
+      - name: Verify service resource
+        if: github.event_name == 'push'
+        run: kubectl get service ${{ env.PROJECT }}
+
+      - name: Lint ingress manifest
+        run: kubernetes-validate 3_ingress.yml
+      - name: Validate ingress manifest
+        run: kubectl --dry-run=client create -f 3_ingress.yml
+      - name: Apply ingress resource
+        if: github.event_name == 'push'
+        run: kubectl apply -f 3_ingress.yml
+      - name: Verify ingress resource
+        if: github.event_name == 'push'
+        run: kubectl get ingress ${{ env.PROJECT }}
+
+      - name: Await Kubernetes deployment
+        uses: jupyterhub/action-k8s-await-workloads@v1.0.0
+        if: github.event_name == 'push'
+        with:
+          workloads: deployment/${{ env.PROJECT }}
+          timeout: 25
+          max-restarts: 5

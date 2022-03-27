@@ -1,0 +1,24 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: template-go-api
+  namespace: sandbox
+  annotations:
+    kubernetes.io/ingress.class: nginx-hardened
+    kubernetes.io/tls-acme: "false"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+spec:
+  rules:
+    - host: template-go-api.sandbox.resuelve.io
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: template-go-api
+              servicePort: 5001
+  tls:
+    - secretName: template-go-api-acme-certificate
+      hosts:
+        - template-go-api.sandbox.resuelve.io

@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: template-elixir-api
+  namespace: sandbox
+  annotations:
+    manifest_path: "kubernetes/sandbox/template-elixir-api/1_deployment.yml"
+  labels:
+    app: template-elixir-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: template-elixir-api
+  template:
+    metadata:
+      annotations:
+        ad.datadoghq.com/template-elixir-api.logs: '[{"source": "template-elixir-api", "service": "template-elixir-api"}]'
+      labels:
+        app: template-elixir-api
+    spec:
+      containers:
+        - name: template-elixir-api
+          image: resuelve/template-elixir-api:latest
+          ports:
+            - containerPort: 4000
+          env:
+            - name: PG_DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: template-elixir-api-secret
+                  key: PG_DB_HOST
+            - name: PG_DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: template-elixir-api-secret
+                  key: PG_DB_PORT
+            - name: PG_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: template-elixir-api-secret
+                  key: PG_DB_NAME
+            - name: PG_DB_SSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: template-elixir-api-secret
+                  key: PG_DB_SSLMODE
+            - name: PG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: template-elixir-api-secret
+                  key: PG_DB_USER
+            - name: PG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: template-elixir-api-secret
+                  key: PG_DB_PASSWORD
+      imagePullSecrets:
+        - name: docker-secrets
+      nodeSelector:
+        cloud.google.com/gke-nodepool: "sandbox-rtd"

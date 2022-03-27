@@ -1,0 +1,32 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: template-node-api
+  namespace: sandbox
+  annotations:
+    kubernetes.io/ingress.class: nginx-hardened
+    nginx.ingress.kubernetes.io/enable-modsecurity: "true"
+    nginx.ingress.kubernetes.io/modsecurity-snippet: |
+      SecRuleEngine On
+      SecRequestBodyAccess On
+      SecAuditEngine RelevantOnly
+      SecAuditLogParts ABIJDEFHZ
+      SecAuditLog /var/log/modsec_audit.log
+      SecRule REQUEST_HEADERS:User-Agent "www.comscore.com/Web-Crawler" "log,deny,id:107,status:403,msg:\'ComScore Web-Clawler identified \'"
+    kubernetes.io/tls-acme: "false"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+spec:
+  rules:
+    - host: template-node-api.sandbox.resuelve.io
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: template-node-api
+              servicePort: 8080
+  tls:
+    - secretName: template-node-api-acme-certificate
+      hosts:
+        - template-node-api.sandbox.resuelve.io

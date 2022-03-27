@@ -1,0 +1,24 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: template-elixir-api
+  namespace: sandbox
+  annotations:
+    kubernetes.io/ingress.class: nginx-hardened
+    kubernetes.io/tls-acme: "false"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+spec:
+  rules:
+    - host: template-elixir-api.sandbox.resuelve.io
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: template-elixir-api
+              servicePort: 4000
+  tls:
+    - secretName: template-elixir-api-acme-certificate
+      hosts:
+        - template-elixir-api.sandbox.resuelve.io
