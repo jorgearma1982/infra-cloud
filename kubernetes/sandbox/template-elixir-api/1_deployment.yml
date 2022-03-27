@@ -4,8 +4,6 @@ kind: Deployment
 metadata:
   name: template-elixir-api
   namespace: sandbox
-  annotations:
-    manifest_path: "kubernetes/sandbox/template-elixir-api/1_deployment.yml"
   labels:
     app: template-elixir-api
 spec:
@@ -15,8 +13,6 @@ spec:
       app: template-elixir-api
   template:
     metadata:
-      annotations:
-        ad.datadoghq.com/template-elixir-api.logs: '[{"source": "template-elixir-api", "service": "template-elixir-api"}]'
       labels:
         app: template-elixir-api
     spec:
@@ -59,4 +55,4 @@ spec:
       imagePullSecrets:
         - name: docker-secrets
       nodeSelector:
-        cloud.google.com/gke-nodepool: "sandbox-rtd"
+        cloud.google.com/gke-nodepool: "sandbox"

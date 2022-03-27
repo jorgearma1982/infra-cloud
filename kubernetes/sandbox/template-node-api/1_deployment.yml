@@ -4,8 +4,6 @@ kind: Deployment
 metadata:
   name: template-node-api
   namespace: sandbox
-  annotations:
-    manifest_path: "kubernetes/sandbox/template-node-api/1_deployment.yml"
   labels:
     app: template-node-api
 spec:
@@ -15,8 +13,6 @@ spec:
       app: template-node-api
   template:
     metadata:
-      annotations:
-        ad.datadoghq.com/template-node-api.logs: '[{"source": "template-node-api", "service": "template-node-api"}]'
       labels:
         app: template-node-api
     spec:
@@ -59,4 +55,4 @@ spec:
       imagePullSecrets:
         - name: docker-secrets
       nodeSelector:
-        cloud.google.com/gke-nodepool: "sandbox-rtd"
+        cloud.google.com/gke-nodepool: "sandbox"

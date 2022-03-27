@@ -4,8 +4,6 @@ kind: Deployment
 metadata:
   name: template-go-api
   namespace: sandbox
-  annotations:
-    manifest_path: "kubernetes/sandbox/template-go-api/1_deployment.yml"
   labels:
     app: template-go-api
 spec:
@@ -15,8 +13,6 @@ spec:
       app: template-go-api
   template:
     metadata:
-      annotations:
-        ad.datadoghq.com/template-go-api.logs: '[{"source": "template-go-api", "service": "template-go-api"}]'
       labels:
         app: template-go-api
     spec:
@@ -59,4 +55,4 @@ spec:
       imagePullSecrets:
         - name: docker-secrets
       nodeSelector:
-        cloud.google.com/gke-nodepool: "sandbox-rtd"
+        cloud.google.com/gke-nodepool: "sandbox"

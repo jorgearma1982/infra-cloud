@@ -14,13 +14,12 @@ on:
 env:
   PROJECT: gha-deployer
   ENVIRONMENT: sandbox
-  NAMESPACE: gadgex
-  K8S_CONFIGS_REPO: infra-gadgex
+  NAMESPACE: gha-deployer
 
 jobs:
   deploy-to-k8s:
     name: Deploy to kubernetes
-    runs-on: self-hosted-gadgex
+    runs-on: self-hosted
     defaults:
       run:
         working-directory: kubernetes/${{ env.ENVIRONMENT }}/${{ env.PROJECT }}
@@ -32,7 +31,7 @@ jobs:
         uses: Azure/setup-kubectl@v1
       - name: Setup kubectl
         env:
-          K8S_CONFIG: ${{ secrets.GADGEX_K8S_CONFIG_SANDBOX }}
+          K8S_CONFIG: ${{ secrets.K8S_CONFIG_SANDBOX }}
         run: |
           mkdir -p $HOME/.kube
           echo "${K8S_CONFIG}" | base64 --decode > $HOME/.kube/config
