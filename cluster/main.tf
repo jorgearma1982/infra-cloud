@@ -19,8 +19,9 @@ resource "google_container_cluster" "cluster" {
   monitoring_service = "monitoring.googleapis.com/kubernetes"
 
   resource_labels = {
-    "proyecto"      = "infra-cloud"
-    "environment"   = "sandbox"
+    "proyecto"    = "infra-cloud"
+    "environment" = "sandbox"
+    "owner"       = "me"
   }
 
   // Decouple the default node pool lifecycle from the cluster object lifecycle
@@ -128,9 +129,9 @@ resource "google_container_node_pool" "cloud_pool" {
     ]
 
     labels = {
-      cluster         = var.cluster_name
-      "proyecto"      = "infra-cloud"
-      "environment"   = "sandbox"
+      cluster       = var.cluster_name
+      "proyecto"    = "infra-cloud"
+      "environment" = "sandbox"
     }
   }
 

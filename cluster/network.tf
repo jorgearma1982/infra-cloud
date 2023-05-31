@@ -159,14 +159,15 @@ resource "google_compute_instance" "bastion" {
   project      = var.project
   tags         = ["bastion"]
   labels = {
-    "proyecto"      = "infra-cloud"
-    "environment"   = "${var.project_env}"
+    "proyecto"    = "infra-cloud"
+    "environment" = "${var.project_env}"
+    "owner"       = "me"
   }
 
   // Specify the Operating System Family and version.
   boot_disk {
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2004-focal-v20211118"
+      image = "ubuntu-os-cloud/ubuntu-2004-focal-v20230302"
       type  = "pd-standard"
       size  = "20"
     }
@@ -218,4 +219,3 @@ resource "google_compute_instance" "bastion" {
 EOF
   }
 }
-
