@@ -22,18 +22,22 @@ variable "zone" {
 
 variable "vpc_cidr_range" {
   description = "vpc_cidr_range"
+  type        = string
 }
 
 variable "services_cidr" {
   description = "services_cidr"
+  type        = string
 }
 
 variable "pods_cidr" {
   description = "pods_cidr"
+  type        = string
 }
 
 variable "gke_version" {
   description = "gke_version"
+  type        = string
 }
 
 // Optional values that can be overridden or appended to if desired.
@@ -45,18 +49,22 @@ variable "cluster_name" {
 
 variable "gke_machine_type" {
   description = "gke_machine_type"
+  type        = string
 }
 
 variable "gke_disk_size" {
   description = "gke_disk_size"
+  type        = string
 }
 
 variable "gke_disk_type" {
   description = "gke_disk_type"
+  type        = string
 }
 
 variable "gke_preemptible" {
   description = "gke_preemptible"
+  type        = string
 }
 
 variable "bastion_tags" {
@@ -113,4 +121,3 @@ variable "project_services" {
   The GCP APIs that should be enabled in this project.
   EOF
 }
-

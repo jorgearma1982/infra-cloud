@@ -1,6 +1,6 @@
 # Infra Cloud Sandbox Cloud Storage
 
-Este repo incluye código para constuir y gestionar la infraestructura cloud necesaria para el almacenamiento del
+Este repo incluye código para construir y gestionar la infraestructura cloud necesaria para el almacenamiento del
 estado de terraform en Google Cloud.
 
 Usamos terraform para automatizar la construcción de los recursos de almacenamiento.
@@ -9,7 +9,8 @@ Usamos terraform para automatizar la construcción de los recursos de almacenami
 
 Este proyecto esta conformado por los siguientes archivos:
 
-* *version.tf:* Definición de versión de terraform y plugin de proveedor.
+* *versions.tf:* Definición de versión de terraform y plugin de proveedor.
+* *variables.tf:* Declaración de variables de terraform.
 * *terraform.tfvars:* Definición de variables para proyecto.
 * *bucket.tf:* Definición de creación de bucket.
 
@@ -33,10 +34,10 @@ desarrollador o ingeniero cloud tenga instalado en su máquina local el siguient
 * npm markdown-link-check
 * tflint
 * terraform-docs
-* terraform 1.0.10
-* gcloud 361.0.x
+* terraform 1.3.7
+* gcloud 425.0.x
 
-Para constuir la infraestructura en GCP se requiere lo siguiente:
+Para construir la infraestructura en GCP se requiere lo siguiente:
 
 * Proyecto en google cloud
 * Cuenta de administrador google cloud
@@ -50,20 +51,14 @@ Para constuir la infraestructura en GCP se requiere lo siguiente:
 
 En Github Actions, en el proyecto se debe definir los siguientes secretos:
 
-* SANDBOX_GCP_PROJECT_ID: Identificador de Proyecto de Google Cloud
-* SANDBOX_GCP_SA_KEY: Contenido de llave json de cuenta de servicio de Google Cloud
+* GCP_SA_KEY: Contenido de llave json de cuenta de servicio de Google Cloud
  
 ## Generando la configuración
 
 El contenido del archivo `bucket.tf` es así:
 
-
-```
+```hcl
 $ cat bucket.tf
-variable "project_id" {
-  description = "project id"
-}
-
 provider "google" {
   project = var.project_id
 }
@@ -77,6 +72,7 @@ resource "google_storage_bucket" "infra-cloud-sandbox-tfstate" {
   labels = {
     "proyecto"      = "infra-cloud"
     "environment"   = "sandbox"
+    "owner"         = "me"
   }
 }
 ```
@@ -85,7 +81,7 @@ resource "google_storage_bucket" "infra-cloud-sandbox-tfstate" {
 
 Usamos el comando init para inicializar el proyecto:
 
-```
+```shell
 $ terraform init
 ```
 
@@ -94,17 +90,17 @@ Note que se instalan los plugins para el proveedor de google cloud.
 ## Validando la configuración
 
 Antes de poder aplicar esta automatización, debemos asegurarnos que el código es conforme a las
-mejores práctiacas y debemos realizar una planeación para validar la correcta configuración.
+mejores prácticas y debemos realizar una planeación para validar la correcta configuración.
 
 Usamos el comando validate:
 
-```
+```shell
 $ terraform validate
 ```
 
 Si no tenemos problemas con sintaxis, realizamos la planeación:
 
-```
+```shell
 $ terraform plan
 ```
 
@@ -114,7 +110,7 @@ Al final nos imprime la salida de los datos de la VPC.
 
 Después de que se realizaron las validaciones y la planificación se debe aplicar con el comando:
 
-```
+```shell
 $ terraform apply
 ```
 
@@ -124,7 +120,7 @@ Al final nos imprime la salida de los datos del bucket.
 
 Ahora debemos verificar que el recurso se ha creado, usaremos gsutil para esto:
 
-```
+```shell
 $ gsutil ls | grep "infra-cloud-sandbox-tfstate"
 ```
 
@@ -132,7 +128,7 @@ $ gsutil ls | grep "infra-cloud-sandbox-tfstate"
 
 Para limpiar o destruir los recursos que se generaron ejecutar:
 
-```
+```shell
 $ terraform destroy
 ```
 
@@ -147,7 +143,7 @@ Hemos usado el framework `pre-commit` para automatizar las tareas pre commit de 
 
 Usamos `tflint` para lintear el código, su configuración se almacena en el archivo `.tflint.hcl`.
 
-Tambien usamos `markdown-link-check` para validar los urls en los archivos markdown.
+También usamos `markdown-link-check` para validar los urls en los archivos markdown.
 
 ## Referencias
 

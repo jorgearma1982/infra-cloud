@@ -1,6 +1,6 @@
 # Infra Cloud Sandbox IAM
 
-Este repo incluye código para constuir y gestionar la infraestructura cloud necesaria para la gestión de cuentas
+Este repo incluye código para construir y gestionar la infraestructura cloud necesaria para la gestión de cuentas
 de servicio con terraform en Google Cloud.
 
 Usamos terraform para automatizar la construcción de los recursos de cuentas de servicio.
@@ -9,7 +9,8 @@ Usamos terraform para automatizar la construcción de los recursos de cuentas de
 
 Este proyecto esta conformado por los siguientes archivos:
 
-- *version.tf:* Definición de versión de terraform y plugin de proveedor.
+- *versions.tf:* Definición de versión de terraform y plugin de proveedor.
+- *variables.tf:* Declaración de variables de terraform.
 - *terraform.tfvars:* Definición de variables para proyecto.
 - *iam.tf:* Definición de creación de cuentas de servicio.
 
@@ -19,10 +20,10 @@ Para el desarrollo y pruebas de la infraestructura definida en el código de est
 desarrollador o ingeniero cloud tenga instalado en su máquina local el siguiente software instalado:
 
  * linux/macos
- * terraform 1.0.10
- * gcloud 361.0.x
+ * terraform 1.3.7
+ * gcloud 425.0.x
 
-Para constuir la infraestructura en GCP se requiere lo siguiente:
+Para construir la infraestructura en GCP se requiere lo siguiente:
 
  * Proyecto en google cloud
  * Cuenta de administrador google cloud
@@ -38,13 +39,8 @@ Para constuir la infraestructura en GCP se requiere lo siguiente:
 
 El contenido del archivo `iam.tf` es así:
 
-
-``` shell
+```shell
 $ cat iam.tf
-variable "project_id" {
-  description = "project id"
-}
-
 provider "google" {
   project = var.project_id
 }
@@ -58,14 +54,13 @@ resource "google_project_iam_member" "terraform_owner_binding" {
   role    = "roles/owner"
   member  = "serviceAccount:${google_service_account.terraform_sa.email}"
 }
-
 ```
 
 ## Inicializando la configuración
 
 Usamos el comando init para inicializar el proyecto:
 
-``` shell
+```shell
 $ terraform init
 ```
 
@@ -73,18 +68,18 @@ Note que se instalan los plugins para el proveedor de google cloud.
 
 ## Validando la configuración
 
-Antes de poder aplicar esta automatización, debemos asegurarnos que el código es conforme a las mejores práctiacas
+Antes de poder aplicar esta automatización, debemos asegurarnos que el código es conforme a las mejores prácticas
 y debemos realizar una planeación para validar la correcta configuración.
 
 Usamos el comando validate:
 
-``` shell
+```shell
 $ terraform validate
 ```
 
 Si no tenemos problemas con sintaxis, realizamos la planeación:
 
-``` shell
+```shell
 $ terraform plan
 ```
 
@@ -94,7 +89,7 @@ Al final nos imprime la salida de los datos de la VPC.
 
 Después de que se realizaron las validaciones y la planificación se debe aplicar con el comando:
 
-``` shell
+```shell
 $ terraform apply
 ```
 
@@ -104,7 +99,7 @@ Al final nos imprime la salida de los datos de la cuenta.
 
 Ahora debemos verificar que el recurso se ha creado, usaremos gcloud para esto:
 
-``` shell
+```shell
 $ gcloud iam service-accounts list | grep terraform-sandbox
 ```
 
@@ -112,6 +107,6 @@ $ gcloud iam service-accounts list | grep terraform-sandbox
 
 Para limpiar o destruir los recursos que se generaron ejecutar:
 
-``` shell
+```shell
 $ terraform destroy
 ```

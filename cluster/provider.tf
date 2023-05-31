@@ -9,6 +9,3 @@ provider "google-beta" {
   region  = var.region
   zone    = var.zone
 }
-
-data "google_client_config" "current" {}
-
