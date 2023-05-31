@@ -51,7 +51,6 @@ Para construir la infraestructura en GCP se requiere lo siguiente:
 
 En Github Actions, en el proyecto se debe definir los siguientes secretos:
 
-* GCP_PROJECT_ID: Identificador de Proyecto de Google Cloud
 * GCP_SA_KEY: Contenido de llave json de cuenta de servicio de Google Cloud
  
 ## Generando la configuración
