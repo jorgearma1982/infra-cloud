@@ -1,6 +1,6 @@
 # Infra Cloud Sandbox Kubernetes Cluster
 
-Este repo incluye código para constuir y gestionar la infraestructura cloud necesaria para correr clusters de
+Este repo incluye código para construir y gestionar la infraestructura cloud necesaria para correr clusters de
 contenedores con kubernetes en Google Cloud.
 
 Usamos terraform para automatizar la construcción de los recursos de red y del cluster.
@@ -10,11 +10,12 @@ Usamos terraform para automatizar la construcción de los recursos de red y del 
 Este proyecto esta conformado por los siguientes archivos:
 
 * provider.tf: Definición de proveedor cloud
-* terraform.tf: Definición de backend para estado de proyecto
+* backend.tf: Definición de backend para estado de proyecto
+* versions.tf: Definición de versiones de plugins del proyecto
 * variables.tf: Definición de variables del proyecto
-* network.tf: Definición de creación de vpc, subredes y bastio
+* network.tf: Definición de creación de vpc, subredes y bastion
 * main.tf: Definición de cluster kubernetes
-* terraform.tfvars: Definición de parametros de proyecto
+* terraform.tfvars: Definición de parámetros de proyecto
 * outputs.tf: Salida de datos generados durante la construcción
 
 ## Recursos Cloud
@@ -45,11 +46,11 @@ Para el desarrollo y pruebas de la infraestructura definida en el código de est
 desarrollador o ingeniero cloud tenga instalado en su máquina local el siguiente software instalado:
 
  * linux/macos
- * terraform 1.0.10
- * gcloud 361.0.x
- * kubectl 1.21.x
+ * terraform 1.3.7
+ * gcloud 425.0.x
+ * kubectl 1.24.x
 
-Para constuir la infraestructura en GCP se requiere lo siguiente:
+Para construir la infraestructura en GCP se requiere lo siguiente:
 
  * Proyecto en google cloud
  * Cuenta de administrador google cloud
@@ -63,8 +64,8 @@ Para constuir la infraestructura en GCP se requiere lo siguiente:
 
 En Github Actions, en el proyecto se debe definir los siguientes secretos:
 
-* SANDBOX_GCP_PROJECT_ID: Identificador de Proyecto de Google Cloud
-* SANDBOX_GCP_SA_KEY: Contenido de llave json de cuenta de servicio de Google Cloud
+* GCP_PROJECT_ID: Identificador de Proyecto de Google Cloud
+* GCP_SA_KEY: Contenido de llave json de cuenta de servicio de Google Cloud
  
 ## Generando la configuración
 
@@ -75,7 +76,7 @@ podrá ser usado desde nuestra herramienta de Integración Continua.
 
 Editamos el archivo `terraform.tf` para definir el nombre del deposito donde almacenaremos el estado de terraform.
 
-``` shell
+```shell
 $ vim terraform.tf
 ```
 
@@ -93,18 +94,18 @@ terraform {
 Editamos el archivo `terraform.tfvars` para definir el nombre del proyecto de google cloud en donde construiremos
 la infra, el nombre del ambiente del proyecto, y también la región y la zona.
 
-``` shell
+```shell
 $ vim terraform.tfvars
 ```
 
 En nuestro ejemplo usamos estos datos:
 
-``` shell
+```shell
 project          = "infra-cloud"
 project_env      = "sandbox"
 region           = "us-central1"
 zone             = "us-central1-f"
-gke_version      = "1.20.10"
+gke_version      = "1.24.11-gke.1000"
 cluster_name     = "cloud-sandbox"
 vpc_cidr_range   = "10.130.0.0/20"
 services_cidr    = "10.228.0.0/20"
@@ -117,7 +118,7 @@ gke_preemptible  = "true"
 
 El nombre del proyecto lo puedes obtener con el comando:
 
-``` shell
+```shell
 $ gcloud config get-value project
 Your active configuration is: [infra-cloud]
 infra-cloud
@@ -129,7 +130,7 @@ Por default usamos la región `us-central1` y la zona `us-central1-f`.
 
 Usamos el comando init para inicializar el proyecto:
 
-``` shell
+```shell
 $ terraform init
 ```
 
@@ -137,18 +138,18 @@ Note que se instalan los plugins para el proveedor de google cloud.
 
 ## Validando la configuración
 
-Antes de poder aplicar esta automatización, debemos asegurarnos que el código es conforme a las mejores práctiacas
+Antes de poder aplicar esta automatización, debemos asegurarnos que el código es conforme a las mejores prácticas
 y debemos realizar una planeación para validar la correcta configuración.
 
 Usamos el comando validate:
 
-``` shell
+```shell
 $ terraform validate
 ```
 
 Si no tenemos problemas con sintaxis, realizamos la planeación:
 
-``` shell
+```shell
 $ terraform plan
 ```
 
@@ -158,7 +159,7 @@ Al final nos imprime la salida de los datos del cluster.
 
 Después de que se realizaron las validaciones y la planificación se debe aplicar con el comando:
 
-``` shell
+```shell
 $ terraform apply
 ```
 
@@ -168,14 +169,14 @@ Al final nos imprime la salida de los datos del cluster.
 
 Ahora debemos verificar que el recurso se ha creado, usaremos gcloud para esto:
 
-``` shell
+```shell
 $ gcloud container clusters list
 ```
 
 Ya que este es un cluster de tipo privado, solo podremos conectarnos al cluster
 a través de la máquina bastión:
 
-``` shell
+```shell
 $ gcloud compute ssh infra-cloud-bastion-sandbox -- -L8888:127.0.0.1:8888
 ```
 
@@ -183,37 +184,37 @@ $ gcloud compute ssh infra-cloud-bastion-sandbox -- -L8888:127.0.0.1:8888
 
 Ahora nos podemos traer las credenciales del proyecto para kubectl:
 
-``` shell
+```shell
 $ gcloud container clusters get-credentials --internal-ip cloud-sandbox --region us-central1
 ```
 
 Exportamos la variable de ambiente del PROXY:
 
-``` shell
+```shell
 $ export HTTPS_PROXY=localhost:8888
 ```
 
 Listamos las configuraciones de los clusters en kubectl:
 
-``` shell
+```shell
 $ kubectl config get-contexts
 ```
 
 Solicitamos la información general del cluster:
 
-``` shell
+```shell
 $ kubectl cluster-info
 ```
 
 Mostramos la información de los nodos:
 
-``` shell
+```shell
 $ kubectl get nodes
 ```
 
 Mostramos la información de los pods:
 
-``` shell
+```shell
 $ kubectl get pods --all-namespaces
 ```
 
@@ -221,7 +222,7 @@ $ kubectl get pods --all-namespaces
 
 Para limpiar o destruir los recursos que se generaron ejecutar:
 
-``` shell
+```shell
 $ terraform destroy
 ```
 
@@ -236,7 +237,7 @@ Hemos usado el framework `pre-commit` para automatizar las tareas pre commit de 
 
 Usamos `tflint` para lintear el código, su configuración se almacena en el archivo `.tflint.hcl`.
 
-Tambien usamos `markdown-link-check` para validar los urls en los archivos markdown.
+También usamos `markdown-link-check` para validar los urls en los archivos markdown.
 
 ## Referencias
 
@@ -258,4 +259,3 @@ La siguiente es una lista de documentación de referencia que se puede usar para
 * [editorconfig-vim](https://github.com/editorconfig/editorconfig-vim)
 * [pre-commit](https://pre-commit.com/)
 * [markdown-link-check](https://github.com/tcort/markdown-link-check)
-
