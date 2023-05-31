@@ -28,6 +28,9 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.3.7
+      - name: Show Terraform version
+        run: |
+          terraform version
       - name: Setup authentication with GCloud
         uses: google-github-actions/auth@v1
         with:
