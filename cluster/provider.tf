@@ -11,4 +11,3 @@ provider "google-beta" {
 }
 
 data "google_client_config" "current" {}
-
